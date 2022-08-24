@@ -78,11 +78,11 @@ def convertRAWMP(path_to_folder, file_format = 'mzML', core_number=-1):
 
     
     if core_number > 1:
-        print(f'Results will be available in {result_path}. Start conversion....\n')
         now = datetime.now()
         dt_string = now.strftime("%d-%m-%Y-%H-%M-%S")   
         result_path = os.path.join(path_to_folder,f'results_{file_format}_{dt_string}')
         os.mkdir(result_path)
+        print(f'Results will be available in {result_path}. Start conversion....\n')
         
     
         if number_of_files > core_number:
