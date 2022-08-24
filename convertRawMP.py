@@ -3,7 +3,7 @@
 """
 Created on Tue Aug 23 14:31:50 2022
 Python code to convert raw ms DDA or DIA data to mzXML or mzML. 
-!!! convertRAWMP will move your raw files, make sure to have a back up !!!
+!!! convertRAWMP will move your raw files if core_number>1, make sure to have a back up !!!
 @author: Jens Settelmeier
 jsettelmeier@ethz.ch 
 """
@@ -68,11 +68,6 @@ def convertRAWMP(path_to_folder, file_format = 'mzML', core_number=-1):
 
     """
     
-    now = datetime.now()
-    dt_string = now.strftime("%d-%m-%Y-%H-%M-%S")   
-    result_path = os.path.join(path_to_folder,f'results_{file_format}_{dt_string}')
-    os.mkdir(result_path)
-    
     # determine how many temp folder will be greated min(number_of_files,number_of_cores)
     # determine how many files will be moved to the temp folders 
     if core_number==-1:
@@ -80,57 +75,66 @@ def convertRAWMP(path_to_folder, file_format = 'mzML', core_number=-1):
     filenames = np.sort(glob.glob('*.raw'))
     number_of_files = len(filenames)
     print(f'Use {core_number} threads for the conversion of {number_of_files} files to {file_format}\n')
-    print(f'Results will be available in {result_path}. Start conversion....\n')
-    if number_of_files > core_number:
-        folder_number = core_number
-        files_per_folder = int(number_of_files/core_number)
-        remaining_files = number_of_files % core_number
-    else:
-        folder_number = number_of_files
-        files_per_folder = 1
-        remaining_files = 0
-    
-    files_per_folder_vec = np.ones(folder_number)*files_per_folder
-    
-    t = 0
-    while remaining_files != 0:
-        files_per_folder_vec[t]=files_per_folder_vec[t]+1
-        t = t+1
-        remaining_files = remaining_files-1
-    
-    # build temporarly folders
-    k=0
-    dst_folders = []
-    for i in range(folder_number):
-        dst = os.path.join(path_to_folder,f'tmp{i}')
-        dst_folders.append(dst)
-        os.mkdir(dst)
-     #   if i == folder_number-1 and folder_number != 1:
-      #      files_per_folder=files_per_folder+remaining_files
-        files_in_curr_tmp_folder = int(files_per_folder_vec[i])
-        for j in range(files_in_curr_tmp_folder):
-            jth_file = filenames[j+k]
-            src = os.path.join(path_to_folder,jth_file)
-            dst_fn = os.path.join(dst,jth_file)
-            shutil.move(src,dst_fn)
-        k = k+j+1 
-     
-    #execute file conversion    
-    o = Parallel(n_jobs=core_number,backend='multiprocessing', verbose=1) (delayed(convertRAW) (path_to_folder, file_format=file_format) for path_to_folder in dst_folders)
-    
-    #move files back and put results in result folder, delete tempory folders
-    for tmp_folder in dst_folders:
-        cur_raw_files = np.sort(glob.glob(os.path.join(tmp_folder,'*.raw')))
-        
-        for path_to_file in cur_raw_files:
-            shutil.move(path_to_file,path_to_folder)
-            
-        cur_converted_files = np.sort(glob.glob(os.path.join(tmp_folder,f'*.{file_format}')))
-        for path_to_converted_file in cur_converted_files:
-            shutil.move(path_to_converted_file,result_path)
-        
-        os.rmdir(tmp_folder)
 
+    
+    if core_number > 1:
+        print(f'Results will be available in {result_path}. Start conversion....\n')
+        now = datetime.now()
+        dt_string = now.strftime("%d-%m-%Y-%H-%M-%S")   
+        result_path = os.path.join(path_to_folder,f'results_{file_format}_{dt_string}')
+        os.mkdir(result_path)
+        
+    
+        if number_of_files > core_number:
+            folder_number = core_number
+            files_per_folder = int(number_of_files/core_number)
+            remaining_files = number_of_files % core_number
+        else:
+            folder_number = number_of_files
+            files_per_folder = 1
+            remaining_files = 0
+        
+        files_per_folder_vec = np.ones(folder_number)*files_per_folder
+        
+        t = 0
+        while remaining_files != 0:
+            files_per_folder_vec[t]=files_per_folder_vec[t]+1
+            t = t+1
+            remaining_files = remaining_files-1
+        
+        # build temporarly folders
+        k=0
+        dst_folders = []
+        for i in range(folder_number):
+            dst = os.path.join(path_to_folder,f'tmp{i}')
+            dst_folders.append(dst)
+            os.mkdir(dst)
+            files_in_curr_tmp_folder = int(files_per_folder_vec[i])
+            for j in range(files_in_curr_tmp_folder):
+                jth_file = filenames[j+k]
+                src = os.path.join(path_to_folder,jth_file)
+                dst_fn = os.path.join(dst,jth_file)
+                shutil.move(src,dst_fn)
+            k = k+j+1 
+         
+        #execute file conversion    
+        o = Parallel(n_jobs=core_number,backend='multiprocessing', verbose=1) (delayed(convertRAW) (path_to_folder, file_format=file_format) for path_to_folder in dst_folders)
+        
+        #move files back and put results in result folder, delete tempory folders
+        for tmp_folder in dst_folders:
+            cur_raw_files = np.sort(glob.glob(os.path.join(tmp_folder,'*.raw')))
+            
+            for path_to_file in cur_raw_files:
+                shutil.move(path_to_file,path_to_folder)
+                
+            cur_converted_files = np.sort(glob.glob(os.path.join(tmp_folder,f'*.{file_format}')))
+            for path_to_converted_file in cur_converted_files:
+                shutil.move(path_to_converted_file,result_path)
+            
+            os.rmdir(tmp_folder)
+    else:
+        print(f'Results will be available in {path_to_folder}. Start conversion....\n')
+        convertRAW(path_to_folder, file_format)
     return
 
 
@@ -152,4 +156,5 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    convertRAWMP(args.p, args.f, args.c) # why is **args not working? Responder will be invited for a drink :)
+    convertRAWMP(args.p, args.f, args.c) # why is **args or *args not working? Responder will be invited for a drink :)
+
