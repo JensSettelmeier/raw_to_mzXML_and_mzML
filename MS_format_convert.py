@@ -70,7 +70,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description='Convert mzML or mzXML to mzXML or mzML.')
     parser.add_argument('--p', '--path', type=str, default = os.getcwd(), help='path to the folder containing all files to be converted')
-    parser.add_argument('--i', '--input_format', type=str, default = os.getcwd(), help='input file format')
+    parser.add_argument('--i', '--input_format', type=str, default = 'mzXML', help='input file format. Default is mzXML')
     parser.add_argument('--o', '--output_format', type = str, default = 'mzML', help='target file format')
     args = parser.parse_args()
     return args
